@@ -1,0 +1,33 @@
+name: MCP Auto Test
+
+on:
+  push:
+    branches: ["*"]
+
+jobs:
+  mcp-auto-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Use Node.js 20.x
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20.x
+          cache: 'npm'
+      - run: npm install
+      - run: npm run build
+      - name: Run MCP Auto Test
+        env:
+          POSTMAN_API_KEY: ${{ secrets.POSTMAN_API_KEY }}
+        run: |
+          node dist/src/index.js --http &
+          sleep 10
+          docker run \
+            -v "$(pwd)/build/reports/specmatic:/usr/src/app/build/reports/specmatic" \
+            -v "$(pwd)/auto_test_dictionary.json:/usr/src/app/dictionary.json" \
+            --network host \
+            specmatic/specmatic mcp test \
+            --url http://localhost:3000 \
+            --bearer-token "$POSTMAN_API_KEY" \
+            --dictionary-file dictionary.json \
+            --skip-tools createCollectionResponse,createMock,createSpecFile,generateSpecFromCollection,getTaggedEntities,getCollection,updateSpecProperties,createCollectionRequest,generateCollection,getMock,getSpecCollections,publishMock,syncCollectionWithSpec,syncSpecWithCollection,createCollectionRequest
